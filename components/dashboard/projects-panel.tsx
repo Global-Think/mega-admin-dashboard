@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { FrameworkIcon } from '@/components/ui/FrameworkIcon';
+import { HoverPrefetchLink } from '@/components/ui/HoverPrefetchLink';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { TableRowsSkeleton } from '@/components/ui/LoadingPrimitives';
 import { formatRelativeTime } from '@/lib/utils';
@@ -30,10 +31,10 @@ export function ProjectsPanelShell({
             </CardDescription>
           </div>
           <Button asChild variant="secondary">
-            <Link href={refreshHref}>
+            <HoverPrefetchLink href={refreshHref}>
               <RefreshCw className="h-4 w-4" />
               Refresh
-            </Link>
+            </HoverPrefetchLink>
           </Button>
         </CardHeader>
 
@@ -115,10 +116,10 @@ export function ProjectsTable({ projects }: { projects: ProjectRegistryRecord[] 
               <TableCell className="text-muted-foreground">{formatRelativeTime(project.created_at)}</TableCell>
               <TableCell className="text-right">
                 <Button asChild variant="secondary">
-                  <Link href={`/projects/${project.name}`}>
+                  <HoverPrefetchLink href={`/projects/${project.name}`}>
                     <FolderKanban className="h-4 w-4" />
                     Open Board
-                  </Link>
+                  </HoverPrefetchLink>
                 </Button>
               </TableCell>
             </TableRow>

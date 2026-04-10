@@ -1,3 +1,5 @@
+import { AppShellLoading } from '@/components/layout/AppShellLoading';
+
 export default function Loading() {
-  return null;
+  return <AppShellLoading page="generic" />;
 }

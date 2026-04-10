@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useSyncExternalStore } from 'react';
 import {
@@ -19,6 +18,7 @@ import {
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { HoverPrefetchLink } from '@/components/ui/HoverPrefetchLink';
 import { cn } from '@/lib/utils';
 import { SignOutButton } from './SignOutButton';
 import { getNavigationForPath, type ShellNavSection } from './navigation';
@@ -83,7 +83,7 @@ export function AppShell({
   const navSections = getNavigationForPath(pathname);
 
   return (
-    <main className="page-fade min-h-screen bg-background">
+    <main className="min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen w-full max-w-[1680px] gap-6 px-4 py-4 md:px-6 md:py-6">
         <div className="lg:hidden">
           <Button
@@ -217,15 +217,13 @@ function SidebarItem({
 }) {
   const Icon = iconMap[item.icon];
   const classes = cn(
-    'group flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-colors',
-    item.active
-      ? 'border-primary bg-primary text-primary-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground'
-      : 'border-transparent text-foreground hover:border-border hover:bg-muted/50 hover:text-foreground',
-    collapsed ? 'justify-center px-2' : ''
+    'group flex items-center gap-3 text-left transition-colors',
+    'bg-transparent text-foreground hover:bg-transparent hover:text-foreground focus-visible:outline-none',
+    collapsed ? 'mx-auto h-9 w-9 justify-center rounded-xl p-0' : 'w-full rounded-2xl px-3 py-2.5'
   );
 
   return (
-    <Link
+    <HoverPrefetchLink
       href={item.href}
       target={item.external ? '_blank' : undefined}
       rel={item.external ? 'noreferrer' : undefined}
@@ -234,8 +232,10 @@ function SidebarItem({
     >
         <span
           className={cn(
-            'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border',
-            item.active ? 'border-primary-foreground/20 bg-primary-foreground/10' : 'border-border bg-background'
+            'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors',
+            item.active
+              ? 'bg-primary text-primary-foreground'
+              : 'border-border bg-background group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground'
           )}
         >
           <Icon className="h-4 w-4" />
@@ -244,13 +244,13 @@ function SidebarItem({
         {!collapsed ? (
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium">{item.label}</span>
-            <span className={cn('mt-1 block text-xs', item.active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+            <span className={cn('mt-1 block text-xs', item.active ? 'text-foreground/70' : 'text-muted-foreground')}>
               {item.description}
             </span>
           </span>
         ) : null}
 
         {!collapsed && item.external ? <ArrowUpRight className="h-4 w-4 opacity-60" /> : null}
-    </Link>
+    </HoverPrefetchLink>
   );
 }

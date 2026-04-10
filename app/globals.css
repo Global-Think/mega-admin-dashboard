@@ -60,10 +60,6 @@
 }
 
 @layer utilities {
-  .page-fade {
-    animation: page-fade 0.2s ease;
-  }
-
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--border)) transparent;
@@ -100,18 +96,6 @@
     border-radius: inherit;
     background: hsl(var(--foreground));
     animation: step-live-sweep 1.1s ease-in-out infinite;
-  }
-}
-
-@keyframes page-fade {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 

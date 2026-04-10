@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { FrameworkIcon } from '@/components/ui/FrameworkIcon';
+import { HoverPrefetchLink } from '@/components/ui/HoverPrefetchLink';
 import { Input } from '@/components/ui/Input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/RadioGroup';
 import { cn } from '@/lib/utils';
@@ -110,24 +111,31 @@ export function NewProjectPanel({
                       key={option.value}
                       htmlFor={`framework-${option.value}`}
                       className={cn(
-                        'cursor-pointer rounded-[1.35rem] border p-3.5 transition-colors',
-                        checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card hover:bg-muted/50'
+                        'cursor-pointer rounded-[1.5rem] p-[1px] transition-all',
+                        checked
+                          ? 'bg-primary'
+                          : 'bg-border/60 hover:bg-border'
                       )}
                     >
-                      <div className="flex items-start gap-3">
+                      <div
+                        className={cn(
+                          'flex items-start gap-3 rounded-[calc(1.5rem-1px)] px-4 py-4 transition-colors',
+                          checked ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground hover:bg-muted/20'
+                        )}
+                      >
                         <RadioGroupItem
                           id={`framework-${option.value}`}
                           value={option.value}
                           className={cn(
-                            'mt-1 border-current',
-                            checked ? 'text-primary-foreground border-primary-foreground' : 'text-primary'
+                            'mt-1 h-4 w-4 border-current bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0',
+                            checked ? 'border-primary-foreground text-primary-foreground' : 'text-muted-foreground'
                           )}
                         />
                         <div className="space-y-2.5">
                           <div
                             className={cn(
-                              'flex h-9 w-9 items-center justify-center rounded-xl border',
-                              checked ? 'border-primary-foreground/20 bg-primary-foreground/10' : 'border-border bg-muted/50'
+                              'flex h-11 w-11 items-center justify-center rounded-2xl transition-colors',
+                              checked ? 'bg-primary-foreground/10 text-primary-foreground' : 'bg-muted text-foreground'
                             )}
                           >
                             <FrameworkIcon
@@ -140,7 +148,7 @@ export function NewProjectPanel({
                           </div>
                           <div>
                             <p className="text-sm font-semibold">{option.label}</p>
-                            <p className={cn('mt-1 text-sm leading-5', checked ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                            <p className={cn('mt-1 text-sm leading-5', checked ? 'text-primary-foreground/72' : 'text-muted-foreground')}>
                               {option.description}
                             </p>
                           </div>
@@ -206,7 +214,7 @@ export function NewProjectPanel({
                     </Button>
                   ) : null}
                   <Button asChild variant="secondary">
-                    <Link href={`/projects/${submittedProjectName}`}>Open Board</Link>
+                    <HoverPrefetchLink href={`/projects/${submittedProjectName}`}>Open Board</HoverPrefetchLink>
                   </Button>
                 </div>
               </Alert>

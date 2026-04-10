@@ -5,6 +5,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { HoverPrefetchLink } from '@/components/ui/HoverPrefetchLink';
 import {
   DistributionRowsSkeleton,
   DonutStatsSkeleton,
@@ -295,10 +296,10 @@ export function PipelineActivityCard({ builds }: { builds: ProjectOverview[] }) 
           <CardDescription>Recent Jenkins jobs with their current state.</CardDescription>
         </div>
         <Button asChild variant="secondary" size="sm">
-          <Link href="/builds">
+          <HoverPrefetchLink href="/builds">
             Open Builds
             <ArrowRight className="h-4 w-4" />
-          </Link>
+          </HoverPrefetchLink>
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -347,10 +348,10 @@ export function RecentProjectsCard({ projects }: { projects: ProjectRecord[] }) 
           <CardDescription>Newest projects with fast access to their boards.</CardDescription>
         </div>
         <Button asChild variant="secondary" size="sm">
-          <Link href="/projects">
+          <HoverPrefetchLink href="/projects">
             Open Projects
             <ArrowRight className="h-4 w-4" />
-          </Link>
+          </HoverPrefetchLink>
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
