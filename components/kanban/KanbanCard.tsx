@@ -66,11 +66,6 @@ function KanbanCardComponent({
                     Syncing...
                   </div>
                 ) : null}
-                {card.description ? (
-                  <p className="text-sm leading-7 text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
-                    {card.description}
-                  </p>
-                ) : null}
               </div>
               <button
                 type="button"
