@@ -16,6 +16,17 @@ export function getSupabaseClient() {
   return supabase;
 }
 
+export async function projectNameExists(projectName: string): Promise<boolean> {
+  const client = getSupabaseClient();
+  const { data, error } = await client.from('projects').select('id').eq('name', projectName).maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return Boolean(data?.id);
+}
+
 export async function createProjectRecord(config: ProjectConfig, repoUrl: string): Promise<string> {
   const client = getSupabaseClient();
   let projectId: string | undefined;
@@ -33,7 +44,7 @@ export async function createProjectRecord(config: ProjectConfig, repoUrl: string
       .single();
 
     if (projectError || !project) {
-      throw new Error(projectError?.message ?? 'Could not create project record');
+      throw new Error(formatProjectInsertError(projectError?.message));
     }
 
     projectId = project.id;
@@ -64,6 +75,14 @@ export async function createProjectRecord(config: ProjectConfig, repoUrl: string
 
     throw error;
   }
+}
+
+function formatProjectInsertError(message?: string): string {
+  if (message?.includes('projects_name_key')) {
+    return 'A project with this name already exists in Mega Admin. Choose a different project name.';
+  }
+
+  return message ?? 'Could not create project record';
 }
 
 export async function deleteProjectRecord(projectId: string): Promise<void> {

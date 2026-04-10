@@ -12,7 +12,7 @@ import { HoverPrefetchLink } from '@/components/ui/HoverPrefetchLink';
 import { Input } from '@/components/ui/Input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/RadioGroup';
 import { cn } from '@/lib/utils';
-import type { CreateProjectResult, FrameworkType, ProjectConfig } from '@/types/project';
+import type { CreateProjectResult, FrameworkType, JenkinsWebhookConfig, ProjectConfig } from '@/types/project';
 import { Field } from './field';
 import type { FormErrors, FrameworkOption } from './types';
 
@@ -176,6 +176,7 @@ export function NewProjectPanel({
 
             <CreateProjectSubmitButton disabled={!canSubmit} />
           </form>
+
         </CardContent>
       </Card>
 
@@ -199,25 +200,31 @@ export function NewProjectPanel({
             ) : null}
 
             {createResult?.success ? (
-              <Alert variant="success">
-                <AlertTitle>Project created successfully</AlertTitle>
-                <AlertDescription className="text-emerald-800">
-                  Private repository, scaffold, collaborators, and Kanban record were created. Use the quick actions
-                  below to jump into the repo or the board.
-                </AlertDescription>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  {createResult.repoUrl ? (
-                    <Button asChild>
-                      <Link href={createResult.repoUrl} target="_blank" rel="noreferrer">
-                        Open Repository
-                      </Link>
+              <div className="space-y-4">
+                <Alert variant="success">
+                  <AlertTitle>Project created successfully</AlertTitle>
+                  <AlertDescription className="text-emerald-800">
+                    Private repository, scaffold, collaborators, and Kanban record were created. Use the quick actions
+                    below to jump into the repo or the board.
+                  </AlertDescription>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {createResult.repoUrl ? (
+                      <Button asChild>
+                        <Link href={createResult.repoUrl} target="_blank" rel="noreferrer">
+                          Open Repository
+                        </Link>
+                      </Button>
+                    ) : null}
+                    <Button asChild variant="secondary">
+                      <HoverPrefetchLink href={`/projects/${submittedProjectName}`}>Open Board</HoverPrefetchLink>
                     </Button>
-                  ) : null}
-                  <Button asChild variant="secondary">
-                    <HoverPrefetchLink href={`/projects/${submittedProjectName}`}>Open Board</HoverPrefetchLink>
-                  </Button>
-                </div>
-              </Alert>
+                  </div>
+                </Alert>
+
+                {createResult.jenkinsWebhook ? (
+                  <JenkinsWebhookCard webhook={createResult.jenkinsWebhook} />
+                ) : null}
+              </div>
             ) : null}
 
             {createResult && !createResult.success ? (
@@ -232,6 +239,43 @@ export function NewProjectPanel({
         </Card>
       ) : null}
     </section>
+  );
+}
+
+function JenkinsWebhookCard({ webhook }: { webhook: JenkinsWebhookConfig }) {
+  return (
+    <div className="rounded-[1.5rem] border bg-muted/20 p-5">
+      <div className="space-y-1">
+        <p className="text-sm font-semibold">Jenkins Hook Configuration</p>
+        <p className="text-sm text-muted-foreground">
+          {webhook.status === 'registered'
+            ? 'This webhook was created during provisioning and can be reused in Jenkins or GitHub checks.'
+            : webhook.reason ?? 'Webhook details are available, but registration was skipped.'}
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <ConfigStat label="Status" value={webhook.status === 'registered' ? 'Registered' : 'Skipped'} />
+        <ConfigStat label="Events" value={webhook.events.join(', ')} />
+        <ConfigStat label="Content Type" value={webhook.contentType} />
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Webhook URL</p>
+        <div className="overflow-x-auto rounded-[1rem] border bg-background px-4 py-3 font-mono text-sm">
+          {webhook.url}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfigStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[1rem] border bg-background px-4 py-3">
+      <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
+      <p className="mt-2 text-sm font-medium">{value}</p>
+    </div>
   );
 }
 

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import type { FormErrors } from '@/components/dashboard/types';
 import { provisionProject } from '@/lib/project-provisioning';
+import { projectNameExists } from '@/lib/supabase';
 import type { CreateProjectResult, FrameworkType, ProjectConfig } from '@/types/project';
 
 export type CreateProjectActionState = {
@@ -31,6 +32,13 @@ export async function createProjectAction(
 
   if (!clientName) {
     errors.clientName = 'Client name is required.';
+  }
+
+  if (projectName && /^[a-z0-9-]+$/.test(projectName)) {
+    const exists = await projectNameExists(projectName);
+    if (exists) {
+      errors.projectName = 'A project with this name already exists in Mega Admin.';
+    }
   }
 
   if (!isFrameworkType(frameworkValue)) {

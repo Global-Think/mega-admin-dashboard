@@ -247,12 +247,13 @@ export function BuildSnapshotCardSkeleton() {
   );
 }
 
-export function CoverageCard({ frameworkCounts, totalProjects }: { frameworkCounts: OverviewData['frameworkCounts']; totalProjects: number }) {
+export function CoverageCard({ frameworkCounts }: { frameworkCounts: OverviewData['frameworkCounts'] }) {
   const frameworkEntries = [
     { label: 'Next.js', value: frameworkCounts.nextjs },
     { label: 'Vue 3', value: frameworkCounts.vue3 },
     { label: 'Angular', value: frameworkCounts.angular },
   ];
+  const totalProjects = frameworkEntries.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <Card className="rounded-[1.75rem] border shadow-none">
@@ -530,7 +531,8 @@ function StatusGrid({ items }: { items: Array<{ label: string; value: number }> 
 }
 
 function DonutStats({ items }: { items: Array<{ label: string; value: number }> }) {
-  const total = Math.max(items.reduce((sum, item) => sum + item.value, 0), 1);
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  const safeTotal = Math.max(total, 1);
   const segments = items.reduce<
     Array<{
       label: string;
@@ -541,7 +543,7 @@ function DonutStats({ items }: { items: Array<{ label: string; value: number }> 
     }>
   >((acc, item, index) => {
     const previousEnd = acc.at(-1)?.end ?? 0;
-    const slice = (item.value / total) * 100;
+    const slice = (item.value / safeTotal) * 100;
 
     acc.push({
       ...item,

@@ -77,7 +77,7 @@ async function BuildSnapshotSection() {
 async function CoverageSection() {
   const overview = await getDashboardOverviewData();
 
-  return <CoverageCard frameworkCounts={overview.frameworkCounts} totalProjects={overview.totals.projects} />;
+  return <CoverageCard frameworkCounts={overview.frameworkCounts} />;
 }
 
 async function PipelineActivitySection() {

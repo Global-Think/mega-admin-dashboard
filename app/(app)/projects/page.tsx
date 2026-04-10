@@ -32,5 +32,5 @@ async function ProjectsDataSection() {
     error = fetchError instanceof Error ? fetchError.message : 'Could not load projects';
   }
 
-  return <ProjectsPanelData projects={projects} error={error} />;
+  return <ProjectsPanelData projects={projects} error={error} jenkinsUrl={process.env.JENKINS_URL ?? null} />;
 }

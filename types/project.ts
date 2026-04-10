@@ -13,11 +13,20 @@ export interface StepResult {
   message: string;
 }
 
+export interface JenkinsWebhookConfig {
+  url: string;
+  events: string[];
+  contentType: 'json';
+  status: 'registered' | 'skipped';
+  reason?: string;
+}
+
 export interface CreateProjectResult {
   success: boolean;
   repoUrl?: string;
   projectId?: string;
   error?: string;
+  jenkinsWebhook?: JenkinsWebhookConfig;
   steps: StepResult[];
 }
 

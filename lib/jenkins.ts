@@ -50,10 +50,6 @@ export function isJenkinsConfigured(): boolean {
   return Boolean(process.env.JENKINS_URL && process.env.JENKINS_USER && process.env.JENKINS_TOKEN);
 }
 
-export function isJenkinsWebhookConfigured(): boolean {
-  return Boolean(process.env.JENKINS_WEBHOOK_BASE_URL?.trim());
-}
-
 function getJenkinsHeaders(): HeadersInit {
   const user = process.env.JENKINS_USER;
   const token = process.env.JENKINS_TOKEN;

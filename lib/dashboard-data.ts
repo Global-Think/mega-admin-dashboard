@@ -11,6 +11,7 @@ import type {
 import { getRepoSlug, listOwnedRepositoryNames, repositoryExists } from '@/lib/github';
 import { flattenJenkinsJobs, getJenkinsFolders, isJenkinsConfigured, isJenkinsEnabled } from '@/lib/jenkins';
 import { getSupabaseClient } from '@/lib/supabase';
+import type { FrameworkType } from '@/types/project';
 
 type JenkinsOverviewResult = {
   folders: JenkinsFolder[];
@@ -161,7 +162,9 @@ export const getDashboardOverviewData = cache(async () => {
   };
 
   for (const project of dashboardProjects) {
-    frameworkCounts[project.framework] += 1;
+    if (isFrameworkType(project.framework)) {
+      frameworkCounts[project.framework] += 1;
+    }
 
     for (const column of project.kanban_columns ?? []) {
       const cards = column.kanban_cards ?? [];
@@ -234,6 +237,10 @@ export const getDashboardOverviewData = cache(async () => {
     },
   };
 });
+
+function isFrameworkType(value: string): value is FrameworkType {
+  return value === 'nextjs' || value === 'vue3' || value === 'angular';
+}
 
 type DashboardProject = ProjectRecord & {
   kanban_columns?: Array<{

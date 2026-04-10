@@ -1,5 +1,7 @@
 const GITHUB_API_BASE = 'https://api.github.com';
 
+import { buildJenkinsWebhookUrl } from '@/lib/jenkins-webhook';
+
 function getGitHubHeaders(): HeadersInit {
   const token = process.env.GITHUB_TOKEN;
 
@@ -258,11 +260,7 @@ export async function createBranch(
 
 export async function registerWebhook(repoSlug: string): Promise<void> {
   const owner = getOwner();
-  const baseUrl = process.env.JENKINS_WEBHOOK_BASE_URL;
-
-  if (!baseUrl) {
-    throw new Error('JENKINS_WEBHOOK_BASE_URL is not configured');
-  }
+  const webhookUrl = getJenkinsWebhookUrl(repoSlug);
 
   await githubRequest(`${GITHUB_API_BASE}/repos/${owner}/${repoSlug}/hooks`, {
     method: 'POST',
@@ -271,12 +269,22 @@ export async function registerWebhook(repoSlug: string): Promise<void> {
       active: true,
       events: ['push'],
       config: {
-        url: `${baseUrl}?token=${repoSlug}`,
+        url: webhookUrl,
         content_type: 'json',
         insecure_ssl: '0',
       },
     }),
   });
+}
+
+export function getJenkinsWebhookUrl(repoSlug: string): string {
+  const jenkinsUrl = process.env.JENKINS_URL;
+
+  if (!jenkinsUrl) {
+    throw new Error('JENKINS_URL is not configured');
+  }
+
+  return buildJenkinsWebhookUrl(jenkinsUrl, repoSlug);
 }
 
 export async function addTeamMembers(repoSlug: string, usernames: string[]): Promise<void> {

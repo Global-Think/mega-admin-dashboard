@@ -1,18 +1,19 @@
 import 'server-only';
 
-import { addTeamMembers, createRepo, deleteRepo, registerWebhook } from '@/lib/github';
+import { addTeamMembers, createRepo, deleteRepo, getJenkinsWebhookUrl, registerWebhook } from '@/lib/github';
 import { cleanupTempDir } from '@/lib/cleanup';
 import { initAndPush } from '@/lib/git';
-import { isJenkinsEnabled, isJenkinsWebhookConfigured } from '@/lib/jenkins';
+import { isJenkinsConfigured, isJenkinsEnabled } from '@/lib/jenkins';
 import { scaffoldProject } from '@/lib/scaffold';
 import { createProjectRecord, deleteProjectRecord } from '@/lib/supabase';
-import type { CreateProjectResult, ProjectConfig, StepResult } from '@/types/project';
+import type { CreateProjectResult, JenkinsWebhookConfig, ProjectConfig, StepResult } from '@/types/project';
 
 export async function provisionProject(config: ProjectConfig): Promise<CreateProjectResult> {
   const steps: StepResult[] = [];
   let repoUrl: string | undefined;
   let projectId: string | undefined;
   let repoCreated = false;
+  let jenkinsWebhook: JenkinsWebhookConfig | undefined;
 
   try {
     const projectPath = await runStep('Scaffold project locally', steps, async () => scaffoldProject(config));
@@ -32,19 +33,38 @@ export async function provisionProject(config: ProjectConfig): Promise<CreatePro
       return 'Initial scaffold pushed to main';
     });
 
-    if (isJenkinsEnabled() && isJenkinsWebhookConfigured()) {
+    if (isJenkinsEnabled() && isJenkinsConfigured()) {
       await runStep('Register Jenkins webhook', steps, async () => {
         await registerWebhook(config.projectName);
         return 'Jenkins push webhook registered';
       });
+
+      jenkinsWebhook = {
+        url: getJenkinsWebhookUrl(config.projectName),
+        events: ['push'],
+        contentType: 'json',
+        status: 'registered',
+      };
     } else {
+      const reason = isJenkinsEnabled()
+        ? 'JENKINS_URL, JENKINS_USER, and JENKINS_TOKEN are required.'
+        : 'Jenkins integration is disabled.';
+
       steps.push({
         step: 'Register Jenkins webhook',
         success: true,
-        message: isJenkinsEnabled()
-          ? 'Skipped for now — Jenkins webhook URL is not configured.'
-          : 'Skipped for now — Jenkins integration is disabled.',
+        message: `Skipped for now — ${reason}`,
       });
+
+      if (isJenkinsEnabled() && process.env.JENKINS_URL) {
+        jenkinsWebhook = {
+          url: getJenkinsWebhookUrl(config.projectName),
+          events: ['push'],
+          contentType: 'json',
+          status: 'skipped',
+          reason,
+        };
+      }
     }
 
     await runStep('Add GitHub collaborators', steps, async () => {
@@ -68,6 +88,7 @@ export async function provisionProject(config: ProjectConfig): Promise<CreatePro
       success: true,
       repoUrl,
       projectId,
+      jenkinsWebhook,
       steps,
     };
   } catch (error) {
@@ -85,6 +106,7 @@ export async function provisionProject(config: ProjectConfig): Promise<CreatePro
       error: message,
       repoUrl,
       projectId,
+      jenkinsWebhook,
       steps,
     };
   } finally {
