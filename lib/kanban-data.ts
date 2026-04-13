@@ -22,13 +22,13 @@ type UpdateCardInput = {
   position?: number;
 };
 
-type ProjectIdentity = {
+type BoardIdentity = {
   id: string;
 };
 
 type ColumnIdentity = {
   id: string;
-  project_id: string;
+  board_id: string;
 };
 
 class KanbanMutationError extends Error {
@@ -44,18 +44,18 @@ class KanbanMutationError extends Error {
 const VALID_PRIORITIES: CardPriority[] = ['low', 'medium', 'high'];
 
 export async function createCardForProject(
-  projectName: string,
+  boardSlug: string,
   input: CreateCardInput
 ): Promise<KanbanCardRecord> {
   const client = getSupabaseClient();
-  const project = await getProjectByName(projectName);
-  await getColumnForProject(input.columnId, project.id);
+  const board = await getBoardBySlug(boardSlug);
+  await getColumnForBoard(input.columnId, board.id);
 
   const nextPosition = await getNextCardPosition(input.columnId);
   const { data, error } = await client
     .from('kanban_cards')
     .insert({
-      project_id: project.id,
+      board_id: board.id,
       column_id: input.columnId,
       title: sanitizeTitle(input.title),
       description: normalizeOptionalText(input.description),
@@ -74,13 +74,13 @@ export async function createCardForProject(
 }
 
 export async function updateCardForProject(
-  projectName: string,
+  boardSlug: string,
   cardId: string,
   input: UpdateCardInput
 ): Promise<KanbanCardRecord> {
   const client = getSupabaseClient();
-  const project = await getProjectByName(projectName);
-  const existingCard = await getCardForProject(cardId, project.id);
+  const board = await getBoardBySlug(boardSlug);
+  const existingCard = await getCardForBoard(cardId, board.id);
 
   const updatePayload = {
     ...(input.title !== undefined ? { title: sanitizeTitle(input.title) } : {}),
@@ -91,16 +91,14 @@ export async function updateCardForProject(
 
   const targetColumnId = input.columnId ?? existingCard.column_id;
   const requestedPosition = input.position ?? existingCard.position;
-  const wantsReorder =
-    input.columnId !== undefined ||
-    input.position !== undefined;
+  const wantsReorder = input.columnId !== undefined || input.position !== undefined;
 
   if (!wantsReorder) {
     const { data, error } = await client
       .from('kanban_cards')
       .update(updatePayload)
       .eq('id', cardId)
-      .eq('project_id', project.id)
+      .eq('board_id', board.id)
       .select()
       .single();
 
@@ -111,13 +109,13 @@ export async function updateCardForProject(
     return data as KanbanCardRecord;
   }
 
-  await getColumnForProject(targetColumnId, project.id);
+  await getColumnForBoard(targetColumnId, board.id);
 
-  const sourceCards = await listCardsForColumn(existingCard.column_id, project.id);
+  const sourceCards = await listCardsForColumn(existingCard.column_id, board.id);
   const destinationCards =
     targetColumnId === existingCard.column_id
       ? sourceCards
-      : await listCardsForColumn(targetColumnId, project.id);
+      : await listCardsForColumn(targetColumnId, board.id);
 
   const sourceWithoutCard = sourceCards.filter((card) => card.id !== cardId);
   const destinationBase =
@@ -153,22 +151,22 @@ export async function updateCardForProject(
   return updatedCard;
 }
 
-export async function deleteCardForProject(projectName: string, cardId: string): Promise<void> {
+export async function deleteCardForProject(boardSlug: string, cardId: string): Promise<void> {
   const client = getSupabaseClient();
-  const project = await getProjectByName(projectName);
-  const existingCard = await getCardForProject(cardId, project.id);
+  const board = await getBoardBySlug(boardSlug);
+  const existingCard = await getCardForBoard(cardId, board.id);
 
   const { error } = await client
     .from('kanban_cards')
     .delete()
     .eq('id', cardId)
-    .eq('project_id', project.id);
+    .eq('board_id', board.id);
 
   if (error) {
     throw new KanbanMutationError(error.message, 500);
   }
 
-  const remainingCards = await listCardsForColumn(existingCard.column_id, project.id);
+  const remainingCards = await listCardsForColumn(existingCard.column_id, board.id);
   await persistCardOrder(resequenceCards(remainingCards));
 }
 
@@ -184,60 +182,60 @@ export function getKanbanMutationMessage(error: unknown, fallback: string): stri
   return error instanceof Error ? error.message : fallback;
 }
 
-async function getProjectByName(projectName: string): Promise<ProjectIdentity> {
+async function getBoardBySlug(boardSlug: string): Promise<BoardIdentity> {
   const client = getSupabaseClient();
   const { data, error } = await client
-    .from('projects')
+    .from('project_boards')
     .select('id')
-    .eq('name', projectName)
+    .eq('slug', boardSlug)
     .single();
 
   if (error || !data) {
-    throw new KanbanMutationError('Project not found.', 404);
+    throw new KanbanMutationError('Board not found.', 404);
   }
 
-  return data as ProjectIdentity;
+  return data as BoardIdentity;
 }
 
-async function getColumnForProject(columnId: string, projectId: string): Promise<ColumnIdentity> {
+async function getColumnForBoard(columnId: string, boardId: string): Promise<ColumnIdentity> {
   const client = getSupabaseClient();
   const { data, error } = await client
     .from('kanban_columns')
-    .select('id, project_id')
+    .select('id, board_id')
     .eq('id', columnId)
-    .eq('project_id', projectId)
+    .eq('board_id', boardId)
     .single();
 
   if (error || !data) {
-    throw new KanbanMutationError('Column not found for this project.', 404);
+    throw new KanbanMutationError('Column not found for this board.', 404);
   }
 
   return data as ColumnIdentity;
 }
 
-async function getCardForProject(cardId: string, projectId: string): Promise<KanbanCardRecord> {
+async function getCardForBoard(cardId: string, boardId: string): Promise<KanbanCardRecord> {
   const client = getSupabaseClient();
   const { data, error } = await client
     .from('kanban_cards')
     .select('*')
     .eq('id', cardId)
-    .eq('project_id', projectId)
+    .eq('board_id', boardId)
     .single();
 
   if (error || !data) {
-    throw new KanbanMutationError('Card not found for this project.', 404);
+    throw new KanbanMutationError('Card not found for this board.', 404);
   }
 
   return data as KanbanCardRecord;
 }
 
-async function listCardsForColumn(columnId: string, projectId: string): Promise<KanbanCardRecord[]> {
+async function listCardsForColumn(columnId: string, boardId: string): Promise<KanbanCardRecord[]> {
   const client = getSupabaseClient();
   const { data, error } = await client
     .from('kanban_cards')
     .select('*')
     .eq('column_id', columnId)
-    .eq('project_id', projectId)
+    .eq('board_id', boardId)
     .order('position', { ascending: true })
     .order('created_at', { ascending: true });
 
@@ -279,7 +277,7 @@ async function persistCardOrder(cards: KanbanCardRecord[]): Promise<void> {
         position: card.position,
       })
       .eq('id', card.id)
-      .eq('project_id', card.project_id);
+      .eq('board_id', card.board_id);
 
     if (error) {
       throw new KanbanMutationError(error.message, 500);

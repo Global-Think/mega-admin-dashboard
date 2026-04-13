@@ -23,8 +23,7 @@ export function ProjectsPanelShell({
           <div className="space-y-2">
             <CardTitle className="text-2xl">Projects registry</CardTitle>
             <CardDescription className="text-sm leading-7">
-              Every provisioned project is listed here with framework, client, creation time, repository, and direct board
-              access.
+              Provisioned projects and legacy board-only workspaces are listed here with direct board access.
             </CardDescription>
           </div>
           <Button asChild variant="secondary">
@@ -60,11 +59,11 @@ export function ProjectsPanelData({
   }
 
   if (!projects.length) {
-    return (
-      <div className="rounded-[1.5rem] border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
-        No projects have been provisioned yet.
-      </div>
-    );
+      return (
+        <div className="rounded-[1.5rem] border border-dashed bg-muted/20 p-6 text-sm text-muted-foreground">
+        No boards have been created yet.
+        </div>
+      );
   }
 
   return <ProjectsTable projects={projects} jenkinsUrl={jenkinsUrl} />;

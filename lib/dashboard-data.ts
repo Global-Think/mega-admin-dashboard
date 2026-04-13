@@ -2,9 +2,9 @@ import 'server-only';
 import { cache } from 'react';
 
 import type {
+  BoardRecord,
   JenkinsFolder,
   ProjectOverview,
-  ProjectRecord,
   ProjectRegistryRecord,
   ProjectWithColumns,
 } from '@/types/project';
@@ -33,7 +33,7 @@ type BoardOverviewResult = {
   completionRate: number;
 };
 
-type ProjectRegistryQueryResult = ProjectRecord & {
+type RegistryBoardQueryResult = BoardRecord & {
   kanban_columns?: Array<{
     name: string;
     kanban_cards?: Array<{
@@ -42,26 +42,42 @@ type ProjectRegistryQueryResult = ProjectRecord & {
   }>;
 };
 
+type DashboardBoard = BoardRecord & {
+  kanban_columns?: Array<{
+    name: string;
+    side: 'fe' | 'be';
+    kanban_cards?: Array<{
+      id: string;
+      priority: 'low' | 'medium' | 'high';
+    }>;
+  }>;
+};
+
 export const getProjects = cache(async (): Promise<ProjectRegistryRecord[]> => {
   const { data, error } = await getSupabaseClient()
-    .from('projects')
-    .select('id, name, client_name, framework, repo_url, created_at, kanban_columns(name, kanban_cards(id))')
+    .from('project_boards')
+    .select(
+      'id, slug, title, client_name, source_type, project_id, framework, repo_url, created_at, kanban_columns(name, kanban_cards(id))'
+    )
     .order('created_at', { ascending: false });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const visibleProjects = await filterProjectsWithExistingRepos((data ?? []) as ProjectRegistryQueryResult[]);
+  const visibleBoards = await filterVisibleBoards((data ?? []) as RegistryBoardQueryResult[]);
 
-  return visibleProjects.map((project) => ({
-    id: project.id,
-    name: project.name,
-    client_name: project.client_name,
-    framework: project.framework,
-    repo_url: project.repo_url,
-    created_at: project.created_at,
-    open_task_count: project.kanban_columns?.reduce((count, column) => {
+  return visibleBoards.map((board) => ({
+    id: board.id,
+    slug: board.slug,
+    title: board.title,
+    client_name: board.client_name,
+    source_type: board.source_type,
+    project_id: board.project_id,
+    framework: board.framework,
+    repo_url: board.repo_url,
+    created_at: board.created_at,
+    open_task_count: board.kanban_columns?.reduce((count, column) => {
       const isDoneColumn = column.name.trim().toLowerCase() === 'done';
       if (isDoneColumn) {
         return count;
@@ -72,27 +88,29 @@ export const getProjects = cache(async (): Promise<ProjectRegistryRecord[]> => {
   }));
 });
 
-export const getProjectByName = cache(async (projectName: string): Promise<ProjectWithColumns> => {
+export const getProjectByName = cache(async (boardSlug: string): Promise<ProjectWithColumns> => {
   const { data, error } = await getSupabaseClient()
-    .from('projects')
+    .from('project_boards')
     .select(
-      'id, name, client_name, framework, repo_url, created_at, kanban_columns(id, project_id, side, name, position, created_at, kanban_cards(id, column_id, project_id, title, description, position, assignee, priority, created_at))'
+      'id, slug, title, client_name, source_type, project_id, framework, repo_url, created_at, kanban_columns(id, board_id, side, name, position, created_at, kanban_cards(id, column_id, board_id, title, description, position, assignee, priority, created_at))'
     )
-    .eq('name', projectName)
+    .eq('slug', boardSlug)
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? 'Could not load project');
+    throw new Error(error?.message ?? 'Could not load project board');
   }
 
-  const repoSlug = getRepoSlug(data.name, data.repo_url);
-  const shouldHideProject = await shouldHideProjectFromGitHub(repoSlug);
+  if (data.source_type === 'provisioned') {
+    const repoSlug = getRepoSlug(data.slug, data.repo_url);
+    const shouldHideBoard = await shouldHideBoardFromGitHub(repoSlug);
 
-  if (shouldHideProject) {
-    throw new Error('Project no longer exists in GitHub');
+    if (shouldHideBoard) {
+      throw new Error('Project no longer exists in GitHub');
+    }
   }
 
-  return data;
+  return data as ProjectWithColumns;
 });
 
 export const getJenkinsOverview = cache(async (): Promise<JenkinsOverviewResult> => {
@@ -141,7 +159,7 @@ export const getJenkinsOverview = cache(async (): Promise<JenkinsOverviewResult>
 });
 
 export const getDashboardOverviewData = cache(async () => {
-  const [dashboardProjects, jenkins] = await Promise.all([getDashboardProjects(), getJenkinsOverview()]);
+  const [dashboardBoards, jenkins] = await Promise.all([getDashboardBoards(), getJenkinsOverview()]);
 
   const frameworkCounts = {
     nextjs: 0,
@@ -161,12 +179,12 @@ export const getDashboardOverviewData = cache(async () => {
     completionRate: 0,
   };
 
-  for (const project of dashboardProjects) {
-    if (isFrameworkType(project.framework)) {
-      frameworkCounts[project.framework] += 1;
+  for (const board of dashboardBoards) {
+    if (isFrameworkType(board.framework)) {
+      frameworkCounts[board.framework] += 1;
     }
 
-    for (const column of project.kanban_columns ?? []) {
+    for (const column of board.kanban_columns ?? []) {
       const cards = column.kanban_cards ?? [];
       const normalizedName = column.name.trim().toLowerCase();
 
@@ -209,13 +227,16 @@ export const getDashboardOverviewData = cache(async () => {
     never: jenkins.jobs.filter((job) => job.color === 'notbuilt').length,
   };
 
-  const recentProjects = dashboardProjects.slice(0, 5).map((project) => ({
-    id: project.id,
-    name: project.name,
-    client_name: project.client_name,
-    framework: project.framework,
-    repo_url: project.repo_url,
-    created_at: project.created_at,
+  const recentProjects = dashboardBoards.slice(0, 5).map((board) => ({
+    id: board.id,
+    slug: board.slug,
+    title: board.title,
+    client_name: board.client_name,
+    source_type: board.source_type,
+    project_id: board.project_id,
+    framework: board.framework,
+    repo_url: board.repo_url,
+    created_at: board.created_at,
   }));
   const latestBuilds = [...jenkins.jobs]
     .filter((job) => job.lastBuild)
@@ -230,7 +251,7 @@ export const getDashboardOverviewData = cache(async () => {
     boardOverview,
     buildCounts,
     totals: {
-      projects: dashboardProjects.length,
+      projects: dashboardBoards.length,
       openTasks: Math.max(boardOverview.totalCards - boardOverview.done, 0),
       runningBuilds: buildCounts.running,
       failedBuilds: buildCounts.failed,
@@ -238,26 +259,15 @@ export const getDashboardOverviewData = cache(async () => {
   };
 });
 
-function isFrameworkType(value: string): value is FrameworkType {
+function isFrameworkType(value: string | null): value is FrameworkType {
   return value === 'nextjs' || value === 'vue3' || value === 'angular';
 }
 
-type DashboardProject = ProjectRecord & {
-  kanban_columns?: Array<{
-    name: string;
-    side: 'fe' | 'be';
-    kanban_cards?: Array<{
-      id: string;
-      priority: 'low' | 'medium' | 'high';
-    }>;
-  }>;
-};
-
-async function getDashboardProjects(): Promise<DashboardProject[]> {
+async function getDashboardBoards(): Promise<DashboardBoard[]> {
   const { data, error } = await getSupabaseClient()
-    .from('projects')
+    .from('project_boards')
     .select(
-      'id, name, client_name, framework, repo_url, created_at, kanban_columns(name, side, kanban_cards(id, priority))'
+      'id, slug, title, client_name, source_type, project_id, framework, repo_url, created_at, kanban_columns(name, side, kanban_cards(id, priority))'
     )
     .order('created_at', { ascending: false });
 
@@ -265,32 +275,44 @@ async function getDashboardProjects(): Promise<DashboardProject[]> {
     throw new Error(error.message);
   }
 
-  return filterProjectsWithExistingRepos((data ?? []) as DashboardProject[]);
+  return filterVisibleBoards((data ?? []) as DashboardBoard[]);
 }
 
-type GitHubBackedProject = {
-  name: string;
+type GitHubBackedBoard = {
+  slug: string;
+  source_type: 'provisioned' | 'legacy';
   repo_url: string | null;
+  created_at: string;
 };
 
-async function filterProjectsWithExistingRepos<T extends GitHubBackedProject>(projects: T[]): Promise<T[]> {
-  if (projects.length === 0) {
+async function filterVisibleBoards<T extends GitHubBackedBoard>(boards: T[]): Promise<T[]> {
+  if (boards.length === 0) {
     return [];
+  }
+
+  const legacyBoards = boards.filter((board) => board.source_type === 'legacy');
+  const provisionedBoards = boards.filter((board) => board.source_type === 'provisioned');
+
+  if (provisionedBoards.length === 0) {
+    return legacyBoards;
   }
 
   try {
     const repositoryNames = await listOwnedRepositoryNames();
+    const visibleProvisionedBoards = provisionedBoards.filter((board) =>
+      repositoryNames.has(getRepoSlug(board.slug, board.repo_url).toLowerCase())
+    );
 
-    return projects.filter((project) =>
-      repositoryNames.has(getRepoSlug(project.name, project.repo_url).toLowerCase())
+    return [...legacyBoards, ...visibleProvisionedBoards].sort(
+      (left, right) => Date.parse(right.created_at ?? '') - Date.parse(left.created_at ?? '')
     );
   } catch (error) {
     console.error('Could not verify project repositories against GitHub.', error);
-    return projects;
+    return boards;
   }
 }
 
-async function shouldHideProjectFromGitHub(repoSlug: string): Promise<boolean> {
+async function shouldHideBoardFromGitHub(repoSlug: string): Promise<boolean> {
   try {
     return !(await repositoryExists(repoSlug));
   } catch (error) {

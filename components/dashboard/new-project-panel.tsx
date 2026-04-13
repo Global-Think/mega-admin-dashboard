@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CheckCircle2, Clock3, GitFork, PlusCircle } from 'lucide-react';
+import { CheckCircle2, Clock3, FolderKanban, GitFork, PlusCircle } from 'lucide-react';
 import { useFormStatus } from 'react-dom';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
@@ -14,44 +14,66 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/RadioGroup';
 import { cn } from '@/lib/utils';
 import type { CreateProjectResult, FrameworkType, JenkinsWebhookConfig, ProjectConfig } from '@/types/project';
 import { Field } from './field';
-import type { FormErrors, FrameworkOption } from './types';
+import type { CreateMode, FormErrors, FrameworkOption, LegacyBoardErrors } from './types';
 
 export function NewProjectPanel({
-  action,
-  form,
+  mode,
+  onModeChange,
+  projectAction,
+  legacyAction,
+  projectForm,
+  legacyTitle,
   teamInput,
-  errors,
-  pending,
+  projectErrors,
+  legacyErrors,
+  projectPending,
+  legacyPending,
   createResult,
+  boardResult,
   submittedProjectName,
   activeStep,
   activeStepIndex,
   progressSteps,
-  canSubmit,
-  onSubmitStart,
-  onChange,
+  canSubmitProject,
+  canSubmitLegacy,
+  onProjectSubmitStart,
+  onProjectChange,
   onFrameworkChange,
   onTeamInputChange,
+  onLegacyTitleChange,
   frameworkOptions,
 }: {
-  action: (formData: FormData) => void;
-  form: ProjectConfig;
+  mode: CreateMode;
+  onModeChange: (mode: CreateMode) => void;
+  projectAction: (formData: FormData) => void;
+  legacyAction: (formData: FormData) => void;
+  projectForm: ProjectConfig;
+  legacyTitle: string;
   teamInput: string;
-  errors: FormErrors;
-  pending: boolean;
+  projectErrors: FormErrors;
+  legacyErrors: LegacyBoardErrors;
+  projectPending: boolean;
+  legacyPending: boolean;
   createResult: CreateProjectResult | null;
+  boardResult: { success: boolean; boardSlug?: string; error?: string } | null;
   submittedProjectName: string;
   activeStep: string | null;
   activeStepIndex: number;
   progressSteps: string[];
-  canSubmit: boolean;
-  onSubmitStart: () => void;
-  onChange: (field: 'projectName' | 'clientName', value: string) => void;
+  canSubmitProject: boolean;
+  canSubmitLegacy: boolean;
+  onProjectSubmitStart: () => void;
+  onProjectChange: (field: 'projectName' | 'clientName', value: string) => void;
   onFrameworkChange: (value: FrameworkType) => void;
   onTeamInputChange: (value: string) => void;
+  onLegacyTitleChange: (value: string) => void;
   frameworkOptions: FrameworkOption[];
 }) {
-  const showExecutionFeed = pending || createResult != null;
+  const showExecutionFeed = projectPending || createResult != null;
+  const currentDescription =
+    mode === 'project'
+      ? 'Create a repo, scaffold the app, and seed the board in one flow.'
+      : 'Create a board only for inherited or external projects without provisioning a repo.';
 
   return (
     <section id="launch" className="space-y-6">
@@ -59,124 +81,172 @@ export function NewProjectPanel({
         <CardHeader className="space-y-3 pb-4">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-muted/50 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
             <PlusCircle className="h-3.5 w-3.5" />
-            Launch Project
+            Create Workspace
           </div>
           <div className="space-y-1.5">
-            <CardTitle className="text-2xl md:text-[2rem]">Create repo, scaffold app, seed the board.</CardTitle>
-            <CardDescription className="max-w-2xl text-sm leading-6">
-              One clean intake form with automatic private repo setup and board provisioning.
-            </CardDescription>
+            <CardTitle className="text-2xl md:text-[2rem]">Create a project workspace.</CardTitle>
+            <CardDescription className="max-w-2xl text-sm leading-6">{currentDescription}</CardDescription>
           </div>
         </CardHeader>
 
-        <CardContent>
-          <form className="space-y-6" action={action} onSubmit={onSubmitStart}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Project Name" error={errors.projectName}>
-                <Input
-                  id="projectName"
-                  name="projectName"
-                  value={form.projectName}
-                  onChange={(event) => onChange('projectName', event.target.value)}
-                  placeholder="acme-dashboard"
-                  disabled={pending}
-                />
-              </Field>
+        <CardContent className="space-y-6">
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Workspace type</p>
+            <RadioGroup
+              value={mode}
+              onValueChange={(value) => onModeChange(value as CreateMode)}
+              className="grid gap-1 rounded-[1.6rem] border border-border/70 bg-gradient-to-b from-muted/40 to-muted/20 p-1.5 lg:grid-cols-2"
+              disabled={projectPending || legacyPending}
+            >
+              <ModeCard
+                id="workspace-project"
+                value="project"
+                checked={mode === 'project'}
+                icon={<GitFork className="h-4 w-4" />}
+                title="Provisioned project"
+                description="Creates the repo, scaffold, collaborators, and board."
+              />
+              <ModeCard
+                id="workspace-legacy"
+                value="legacy"
+                checked={mode === 'legacy'}
+                icon={<FolderKanban className="h-4 w-4" />}
+                title="Legacy board"
+                description="Creates only a Kanban board for an existing external or inherited project."
+              />
+            </RadioGroup>
+          </div>
 
-              <Field label="Client Name" error={errors.clientName}>
-                <Input
-                  id="clientName"
-                  name="clientName"
-                  value={form.clientName}
-                  onChange={(event) => onChange('clientName', event.target.value)}
-                  placeholder="Acme Corp"
-                  disabled={pending}
-                />
-              </Field>
-            </div>
+          {mode === 'project' ? (
+            <form className="space-y-6" action={projectAction} onSubmit={onProjectSubmitStart}>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Project Name" error={projectErrors.projectName}>
+                  <Input
+                    id="projectName"
+                    name="projectName"
+                    value={projectForm.projectName}
+                    onChange={(event) => onProjectChange('projectName', event.target.value)}
+                    placeholder="acme-dashboard"
+                    disabled={projectPending}
+                  />
+                </Field>
 
-            <Field label="Framework" error={errors.framework}>
-              <input type="hidden" name="framework" value={form.framework} />
-              <RadioGroup
-                value={form.framework}
-                onValueChange={(value) => onFrameworkChange(value as FrameworkType)}
-                className="grid gap-3 lg:grid-cols-3"
-                disabled={pending}
-              >
-                {frameworkOptions.map((option) => {
-                  const checked = form.framework === option.value;
+                <Field label="Client Name" error={projectErrors.clientName}>
+                  <Input
+                    id="clientName"
+                    name="clientName"
+                    value={projectForm.clientName}
+                    onChange={(event) => onProjectChange('clientName', event.target.value)}
+                    placeholder="Acme Corp"
+                    disabled={projectPending}
+                  />
+                </Field>
+              </div>
 
-                  return (
-                    <label
-                      key={option.value}
-                      htmlFor={`framework-${option.value}`}
-                      className={cn(
-                        'cursor-pointer rounded-[1.5rem] p-[1px] transition-all',
-                        checked
-                          ? 'bg-primary'
-                          : 'bg-border/60 hover:bg-border'
-                      )}
-                    >
-                      <div
+              <Field label="Framework" error={projectErrors.framework}>
+                <input type="hidden" name="framework" value={projectForm.framework} />
+                <RadioGroup
+                  value={projectForm.framework}
+                  onValueChange={(value) => onFrameworkChange(value as FrameworkType)}
+                  className="grid gap-3 lg:grid-cols-3"
+                  disabled={projectPending}
+                >
+                  {frameworkOptions.map((option) => {
+                    const checked = projectForm.framework === option.value;
+
+                    return (
+                      <label
+                        key={option.value}
+                        htmlFor={`framework-${option.value}`}
                         className={cn(
-                          'flex items-start gap-3 rounded-[calc(1.5rem-1px)] px-4 py-4 transition-colors',
-                          checked ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground hover:bg-muted/20'
+                          'cursor-pointer rounded-[1.5rem] p-[1px] transition-all',
+                          checked ? 'bg-primary' : 'bg-border/60 hover:bg-border'
                         )}
                       >
-                        <RadioGroupItem
-                          id={`framework-${option.value}`}
-                          value={option.value}
+                        <div
                           className={cn(
-                            'mt-1 h-4 w-4 border-current bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0',
-                            checked ? 'border-primary-foreground text-primary-foreground' : 'text-muted-foreground'
+                            'flex items-start gap-3 rounded-[calc(1.5rem-1px)] px-4 py-4 transition-colors',
+                            checked ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground hover:bg-muted/20'
                           )}
-                        />
-                        <div className="space-y-2.5">
-                          <div
+                        >
+                          <RadioGroupItem
+                            id={`framework-${option.value}`}
+                            value={option.value}
                             className={cn(
-                              'flex h-11 w-11 items-center justify-center rounded-2xl transition-colors',
-                              checked ? 'bg-primary-foreground/10 text-primary-foreground' : 'bg-muted text-foreground'
+                              'mt-1 h-4 w-4 border-current bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0',
+                              checked ? 'border-primary-foreground text-primary-foreground' : 'text-muted-foreground'
                             )}
-                          >
-                            <FrameworkIcon
-                              framework={option.value}
+                          />
+                          <div className="space-y-2.5">
+                            <div
                               className={cn(
-                                checked ? 'text-primary-foreground' : 'text-foreground',
-                                option.value === 'nextjs' ? 'h-5 w-5' : 'h-4 w-4'
+                                'flex h-11 w-11 items-center justify-center rounded-2xl transition-colors',
+                                checked ? 'bg-primary-foreground/10 text-primary-foreground' : 'bg-muted text-foreground'
                               )}
-                            />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold">{option.label}</p>
-                            <p className={cn('mt-1 text-sm leading-5', checked ? 'text-primary-foreground/72' : 'text-muted-foreground')}>
-                              {option.description}
-                            </p>
+                            >
+                              <FrameworkIcon
+                                framework={option.value}
+                                className={cn(
+                                  checked ? 'text-primary-foreground' : 'text-foreground',
+                                  option.value === 'nextjs' ? 'h-5 w-5' : 'h-4 w-4'
+                                )}
+                              />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold">{option.label}</p>
+                              <p
+                                className={cn(
+                                  'mt-1 text-sm leading-5',
+                                  checked ? 'text-primary-foreground/72' : 'text-muted-foreground'
+                                )}
+                              >
+                                {option.description}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </label>
-                  );
-                })}
-              </RadioGroup>
-            </Field>
+                      </label>
+                    );
+                  })}
+                </RadioGroup>
+              </Field>
 
-            <Field label="GitHub Collaborators" error={errors.teamMembers}>
-              <Input
-                id="teamMembers"
-                name="teamMembers"
-                value={teamInput}
-                onChange={(event) => onTeamInputChange(event.target.value)}
-                placeholder="durantula1, teammate-dev"
-                disabled={pending}
-              />
-              <p className="text-sm leading-5 text-muted-foreground">
-                Comma-separated GitHub usernames. New repositories are created as private, and access is limited to the owner plus invited collaborators.
+              <Field label="GitHub Collaborators" error={projectErrors.teamMembers}>
+                <Input
+                  id="teamMembers"
+                  name="teamMembers"
+                  value={teamInput}
+                  onChange={(event) => onTeamInputChange(event.target.value)}
+                  placeholder="durantula1, teammate-dev"
+                  disabled={projectPending}
+                />
+                <p className="text-sm leading-5 text-muted-foreground">
+                  Comma-separated GitHub usernames. New repositories are created as private, and access is limited to the owner plus invited collaborators.
+                </p>
+              </Field>
+
+              <CreateProjectSubmitButton disabled={!canSubmitProject} />
+            </form>
+          ) : (
+            <form className="space-y-6" action={legacyAction}>
+              <Field label="Board Title" error={legacyErrors.title}>
+                <Input
+                  id="legacy-board-title"
+                  name="title"
+                  value={legacyTitle}
+                  onChange={(event) => onLegacyTitleChange(event.target.value)}
+                  placeholder="Baby chef"
+                  disabled={legacyPending}
+                />
+              </Field>
+
+              <p className="text-sm text-muted-foreground">
+                The board URL will be generated automatically from the title.
               </p>
-            </Field>
 
-            <CreateProjectSubmitButton disabled={!canSubmit} />
-          </form>
-
+              <CreateLegacySubmitButton disabled={!canSubmitLegacy} />
+            </form>
+          )}
         </CardContent>
       </Card>
 
@@ -191,7 +261,7 @@ export function NewProjectPanel({
           </CardHeader>
 
           <CardContent className="space-y-5">
-            {pending && activeStep ? (
+            {projectPending && activeStep ? (
               <LiveConsoleCard
                 stepIndex={activeStepIndex}
                 totalSteps={progressSteps.length}
@@ -221,9 +291,7 @@ export function NewProjectPanel({
                   </div>
                 </Alert>
 
-                {createResult.jenkinsWebhook ? (
-                  <JenkinsWebhookCard webhook={createResult.jenkinsWebhook} />
-                ) : null}
+                {createResult.jenkinsWebhook ? <JenkinsWebhookCard webhook={createResult.jenkinsWebhook} /> : null}
               </div>
             ) : null}
 
@@ -238,7 +306,103 @@ export function NewProjectPanel({
           </CardContent>
         </Card>
       ) : null}
+
+      {boardResult ? (
+        <Card className="rounded-[2rem] border shadow-none">
+          <CardContent className="space-y-5 pt-6">
+            {boardResult.success ? (
+              <Alert variant="success">
+                <AlertTitle>Board created successfully</AlertTitle>
+                <AlertDescription className="text-emerald-800">
+                  The legacy board is ready with default frontend and backend columns.
+                </AlertDescription>
+                {boardResult.boardSlug ? (
+                  <div className="mt-4">
+                    <Button asChild>
+                      <Link href={`/projects/${boardResult.boardSlug}`}>Open Board</Link>
+                    </Button>
+                  </div>
+                ) : null}
+              </Alert>
+            ) : (
+              <Alert variant="error">
+                <AlertTitle>Board creation failed</AlertTitle>
+                <AlertDescription className="text-red-700">
+                  {boardResult.error ?? 'Could not create board.'}
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </section>
+  );
+}
+
+function ModeCard({
+  id,
+  value,
+  checked,
+  icon,
+  title,
+  description,
+}: {
+  id: string;
+  value: CreateMode;
+  checked: boolean;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className={cn(
+        'cursor-pointer rounded-[1.25rem] transition-all duration-200',
+        checked ? 'bg-background shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_0_0_1px_rgba(15,23,42,0.08)]' : 'hover:bg-background/50'
+      )}
+    >
+      <div
+        className={cn(
+          'flex items-center gap-3 rounded-[1.25rem] border px-4 py-3 transition-all duration-200',
+          checked
+            ? 'border-foreground/10 bg-background text-foreground ring-1 ring-foreground/8'
+            : 'border-transparent bg-transparent text-muted-foreground'
+        )}
+      >
+        <RadioGroupItem
+          id={id}
+          value={value}
+          className={cn(
+            'h-4 w-4 border-current bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0',
+            checked ? 'text-foreground' : 'text-muted-foreground/80'
+          )}
+        />
+        <div
+          className={cn(
+            'flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200',
+            checked
+              ? 'bg-foreground text-background shadow-[0_8px_20px_rgba(15,23,42,0.18)]'
+              : 'bg-background/80 text-foreground'
+          )}
+        >
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <p className={cn('text-sm font-semibold transition-colors', checked ? 'text-foreground' : 'text-foreground/80')}>
+            {title}
+          </p>
+          <p
+            className={cn(
+              'mt-0.5 text-sm leading-5 transition-colors',
+              checked ? 'text-muted-foreground' : 'text-muted-foreground/90'
+            )}
+          >
+            {description}
+          </p>
+        </div>
+      </div>
+    </label>
   );
 }
 
@@ -304,6 +468,31 @@ function CreateProjectSubmitButton({ disabled }: { disabled: boolean }) {
   );
 }
 
+function CreateLegacySubmitButton({ disabled }: { disabled: boolean }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      size="lg"
+      className="w-full md:w-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+      disabled={pending || disabled}
+    >
+      {pending ? (
+        <>
+          <span className="loading-dot h-2.5 w-2.5 rounded-full bg-primary-foreground" />
+          Creating board
+        </>
+      ) : (
+        <>
+          <FolderKanban className="h-4 w-4" />
+          Create Board
+        </>
+      )}
+    </Button>
+  );
+}
+
 function LiveConsoleCard({
   stepIndex,
   totalSteps,
@@ -358,19 +547,13 @@ function LiveConsoleCard({
                         {isComplete ? (
                           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
                         ) : isActive ? (
-                          <Clock3 className="h-3.5 w-3.5 animate-pulse text-amber-300" />
+                          <span className="h-2 w-2 rounded-full bg-amber-300" />
                         ) : (
-                          <span className="text-zinc-600">&gt;</span>
+                          <span className="h-2 w-2 rounded-full bg-zinc-600" />
                         )}
-                        <span className="whitespace-nowrap text-xs">
-                          {item.toLowerCase()}
-                          {isActive ? '...' : isComplete ? ' complete' : ''}
-                        </span>
-                        {isActive ? (
-                          <span className="inline-block h-3.5 w-1.5 animate-pulse rounded-sm bg-zinc-400/70" />
-                        ) : null}
+                        <span>{item}</span>
                       </div>
-                      {index < steps.length - 1 ? <span className="text-zinc-700">/</span> : null}
+                      {index < steps.length - 1 ? <span className="text-zinc-600">/</span> : null}
                     </div>
                   );
                 })}
@@ -378,22 +561,7 @@ function LiveConsoleCard({
             </div>
           </div>
         </div>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <ConsoleStat label="Mode" value="Private repo" />
-          <ConsoleStat label="Access" value="Owner + collaborators" />
-          <ConsoleStat label="Status" value="Running" />
-        </div>
       </div>
-    </div>
-  );
-}
-
-function ConsoleStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[1rem] border border-white/10 bg-white/[0.03] px-3 py-3">
-      <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-zinc-500">{label}</p>
-      <p className="mt-2 text-sm text-zinc-100">{value}</p>
     </div>
   );
 }

@@ -78,14 +78,28 @@ export interface ProjectRecord {
   created_at: string;
 }
 
-export interface ProjectRegistryRecord extends ProjectRecord {
+export type BoardSourceType = 'provisioned' | 'legacy';
+
+export interface BoardRecord {
+  id: string;
+  slug: string;
+  title: string;
+  client_name: string;
+  source_type: BoardSourceType;
+  project_id: string | null;
+  framework: FrameworkType | null;
+  repo_url: string | null;
+  created_at: string;
+}
+
+export interface ProjectRegistryRecord extends BoardRecord {
   open_task_count: number;
 }
 
 export interface KanbanCardRecord {
   id: string;
   column_id: string;
-  project_id: string;
+  board_id: string;
   title: string;
   description: string | null;
   position: number;
@@ -96,7 +110,7 @@ export interface KanbanCardRecord {
 
 export interface KanbanColumnRecord {
   id: string;
-  project_id: string;
+  board_id: string;
   side: 'fe' | 'be';
   name: string;
   position: number;
@@ -104,6 +118,6 @@ export interface KanbanColumnRecord {
   kanban_cards?: KanbanCardRecord[];
 }
 
-export interface ProjectWithColumns extends ProjectRecord {
+export interface ProjectWithColumns extends BoardRecord {
   kanban_columns: KanbanColumnRecord[];
 }

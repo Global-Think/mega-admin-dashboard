@@ -23,7 +23,9 @@ export function ProjectsTableClient({
 }) {
   const [selectedProject, setSelectedProject] = useState<ProjectRegistryRecord | null>(null);
   const selectedWebhookUrl =
-    selectedProject && jenkinsUrl ? buildJenkinsWebhookUrl(jenkinsUrl, selectedProject.name) : null;
+    selectedProject && jenkinsUrl && selectedProject.source_type === 'provisioned'
+      ? buildJenkinsWebhookUrl(jenkinsUrl, selectedProject.slug)
+      : null;
 
   return (
     <>
@@ -43,8 +45,15 @@ export function ProjectsTableClient({
               <TableRow key={project.id}>
                 <TableCell>
                   <div className="space-y-1">
-                    <p className="font-medium">{project.name}</p>
-                    <p className="text-sm text-muted-foreground">{project.client_name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{project.title}</p>
+                      {project.source_type === 'legacy' ? <Badge variant="warning">Legacy</Badge> : null}
+                    </div>
+                    {project.source_type === 'provisioned' ? (
+                      <p className="text-sm text-muted-foreground">{project.client_name}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Board only</p>
+                    )}
                     {project.repo_url ? (
                       <Link
                         href={project.repo_url}
@@ -59,10 +68,14 @@ export function ProjectsTableClient({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className="gap-1.5">
-                    <FrameworkIcon framework={project.framework} />
-                    {project.framework}
-                  </Badge>
+                  {project.framework ? (
+                    <Badge className="gap-1.5">
+                      <FrameworkIcon framework={project.framework} />
+                      {project.framework}
+                    </Badge>
+                  ) : (
+                    <Badge variant="neutral">Board only</Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline">{project.open_task_count} active</Badge>
@@ -71,20 +84,22 @@ export function ProjectsTableClient({
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
                     <Button asChild variant="secondary">
-                      <HoverPrefetchLink href={`/projects/${project.name}`}>
+                      <HoverPrefetchLink href={`/projects/${project.slug}`}>
                         <FolderKanban className="h-4 w-4" />
                         Open Board
                       </HoverPrefetchLink>
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      type="button"
-                      onClick={() => setSelectedProject(project)}
-                      aria-label={`Open webhook details for ${project.name}`}
-                    >
-                      <Info className="h-4 w-4" />
-                    </Button>
+                    {project.source_type === 'provisioned' ? (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        type="button"
+                        onClick={() => setSelectedProject(project)}
+                        aria-label={`Open webhook details for ${project.title}`}
+                      >
+                        <Info className="h-4 w-4" />
+                      </Button>
+                    ) : null}
                   </div>
                 </TableCell>
               </TableRow>
@@ -98,14 +113,14 @@ export function ProjectsTableClient({
           <DialogHeader>
             <DialogTitle>Webhook details</DialogTitle>
             <DialogDescription>
-              {selectedProject ? `${selectedProject.name} GitHub webhook target for Jenkins.` : ''}
+              {selectedProject ? `${selectedProject.title} GitHub webhook target for Jenkins.` : ''}
             </DialogDescription>
           </DialogHeader>
 
           {selectedProject ? (
             <div className="space-y-4">
               <div className="grid gap-3 md:grid-cols-3">
-                <ConfigStat label="Repository token" value={selectedProject.name} />
+                <ConfigStat label="Repository token" value={selectedProject.slug} />
                 <ConfigStat label="Events" value="push" />
                 <ConfigStat label="Content type" value="json" />
               </div>

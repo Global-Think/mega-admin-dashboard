@@ -90,7 +90,7 @@ export function ProjectBoardClient({ initialProject }: { initialProject: Project
     const optimisticCard: KanbanCardRecord = {
       id: `temp-${Date.now()}`,
       column_id: columnId,
-      project_id: project.id,
+      board_id: project.id,
       title: payload.title,
       description: payload.description || null,
       position: existingCards.length,
@@ -102,11 +102,11 @@ export function ProjectBoardClient({ initialProject }: { initialProject: Project
     const snapshot = project;
     setCardsLocally((current) => mutateCardCollection(current, columnId, [...existingCards, optimisticCard]));
 
-    const response = await fetch(`/api/projects/${project.name}/cards`, {
+    const response = await fetch(`/api/projects/${project.slug}/cards`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        project_id: project.id,
+        board_id: project.id,
         column_id: columnId,
         title: optimisticCard.title,
         description: optimisticCard.description,
@@ -150,7 +150,7 @@ export function ProjectBoardClient({ initialProject }: { initialProject: Project
 
       setCardsLocally((current) => replaceCard(current, card.id, updatedCard));
 
-      const response = await fetch(`/api/projects/${project.name}/cards/${card.id}`, {
+      const response = await fetch(`/api/projects/${project.slug}/cards/${card.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -188,7 +188,7 @@ export function ProjectBoardClient({ initialProject }: { initialProject: Project
       )
     );
 
-    const response = await fetch(`/api/projects/${project.name}/cards/${target.id}`, {
+    const response = await fetch(`/api/projects/${project.slug}/cards/${target.id}`, {
       method: 'DELETE',
     });
 
@@ -239,7 +239,7 @@ export function ProjectBoardClient({ initialProject }: { initialProject: Project
     setProject(nextProject);
     setSyncingCardId(draggableId);
     try {
-      const response = await fetch(`/api/projects/${project.name}/cards/${draggableId}`, {
+      const response = await fetch(`/api/projects/${project.slug}/cards/${draggableId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -302,9 +302,14 @@ export function ProjectBoardClient({ initialProject }: { initialProject: Project
       <Tabs value={activeSide} onValueChange={(value) => setActiveSide(value as 'fe' | 'be')} className="space-y-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold">Project tasks</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold">{project.title}</h1>
+              <Badge variant={project.source_type === 'legacy' ? 'warning' : 'secondary'}>
+                {project.source_type === 'legacy' ? 'Legacy Board' : 'Provisioned Board'}
+              </Badge>
+            </div>
             <p className="text-sm text-muted-foreground">
-              Switch between frontend and backend workstreams, keep more tasks visible, and focus on one lane at a time.
+              {project.client_name} workspace. Switch between frontend and backend workstreams and keep delivery visible.
             </p>
           </div>
           <TabsList className="w-full justify-start lg:w-auto">

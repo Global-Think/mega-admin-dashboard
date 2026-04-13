@@ -4,13 +4,19 @@ import { revalidatePath } from 'next/cache';
 
 import type { FormErrors } from '@/components/dashboard/types';
 import { provisionProject } from '@/lib/project-provisioning';
-import { projectNameExists } from '@/lib/supabase';
+import { createLegacyBoardRecord, projectNameExists } from '@/lib/supabase';
 import type { CreateProjectResult, FrameworkType, ProjectConfig } from '@/types/project';
 
 export type CreateProjectActionState = {
   errors: FormErrors;
   result: CreateProjectResult | null;
   submittedProjectName: string;
+};
+
+export type CreateBoardActionState = {
+  errors: Partial<Record<'title', string>>;
+  result: { success: boolean; boardSlug?: string; error?: string } | null;
+  submittedBoardSlug: string;
 };
 
 export async function createProjectAction(
@@ -84,6 +90,64 @@ export async function createProjectAction(
   };
 }
 
+export async function createLegacyBoardAction(
+  _previousState: CreateBoardActionState,
+  formData: FormData
+): Promise<CreateBoardActionState> {
+  const title = String(formData.get('title') ?? '').trim();
+  const slug = normalizeSlug(title);
+
+  const errors: CreateBoardActionState['errors'] = {};
+
+  if (!title) {
+    errors.title = 'Board title is required.';
+  }
+  if (!slug) {
+    errors.title = 'Board title must include letters or numbers.';
+  } else if (await projectNameExists(slug)) {
+    errors.title = 'A board with this name already exists in Mega Admin.';
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return {
+      errors,
+      result: null,
+      submittedBoardSlug: slug,
+    };
+  }
+
+  try {
+    await createLegacyBoardRecord({
+      slug,
+      title,
+      clientName: title,
+    });
+
+    revalidatePath('/');
+    revalidatePath('/launch');
+    revalidatePath('/projects');
+    revalidatePath(`/projects/${slug}`);
+
+    return {
+      errors: {},
+      result: {
+        success: true,
+        boardSlug: slug,
+      },
+      submittedBoardSlug: slug,
+    };
+  } catch (error) {
+    return {
+      errors: {},
+      result: {
+        success: false,
+        error: error instanceof Error ? error.message : 'Could not create board.',
+      },
+      submittedBoardSlug: slug,
+    };
+  }
+}
+
 function parseHandles(value: string): string[] {
   return value
     .split(',')
@@ -94,4 +158,12 @@ function parseHandles(value: string): string[] {
 
 function isFrameworkType(value: string): value is FrameworkType {
   return value === 'nextjs' || value === 'vue3' || value === 'angular';
+}
+
+function normalizeSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }

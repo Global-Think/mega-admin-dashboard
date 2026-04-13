@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { Activity, AlertTriangle, ArrowRight, FolderKanban, Layers3 } from 'lucide-react';
 
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/Accordion';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -16,10 +15,10 @@ import {
   TextLineSkeleton,
 } from '@/components/ui/LoadingPrimitives';
 import { formatDurationWords, formatRelativeTime } from '@/lib/utils';
-import type { ProjectOverview, ProjectRecord } from '@/types/project';
+import type { BoardRecord, ProjectOverview } from '@/types/project';
 
 export type OverviewData = {
-  recentProjects: ProjectRecord[];
+  recentProjects: BoardRecord[];
   latestBuilds: ProjectOverview[];
   frameworkCounts: Record<'nextjs' | 'vue3' | 'angular', number>;
   boardOverview: {
@@ -305,13 +304,7 @@ export function PipelineActivityCard({ builds }: { builds: ProjectOverview[] }) 
       </CardHeader>
       <CardContent className="space-y-3">
         {builds.length ? (
-          <ExpandableList
-            initialCount={3}
-            items={builds}
-            getKey={(job) => job.jobUrl}
-            renderItem={(job) => <PipelineActivityItem job={job} />}
-            itemLabel="builds"
-          />
+          builds.slice(0, 3).map((job) => <PipelineActivityItem key={job.jobUrl} job={job} />)
         ) : (
           <EmptyInfo label="No Jenkins activity found yet." />
         )}
@@ -340,13 +333,13 @@ export function PipelineActivityCardSkeleton() {
   );
 }
 
-export function RecentProjectsCard({ projects }: { projects: ProjectRecord[] }) {
+export function RecentProjectsCard({ projects }: { projects: BoardRecord[] }) {
   return (
     <Card className="rounded-[1.75rem] border shadow-none">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <CardTitle className="text-lg">Recently Provisioned</CardTitle>
-          <CardDescription>Newest projects with fast access to their boards.</CardDescription>
+          <CardTitle className="text-lg">Recent Boards</CardTitle>
+          <CardDescription>Newest provisioned and legacy workspaces with fast board access.</CardDescription>
         </div>
         <Button asChild variant="secondary" size="sm">
           <HoverPrefetchLink href="/projects">
@@ -357,15 +350,9 @@ export function RecentProjectsCard({ projects }: { projects: ProjectRecord[] }) 
       </CardHeader>
       <CardContent className="space-y-3">
         {projects.length ? (
-          <ExpandableList
-            initialCount={3}
-            items={projects}
-            getKey={(project) => project.id}
-            renderItem={(project) => <RecentProjectItem project={project} />}
-            itemLabel="projects"
-          />
+          projects.slice(0, 3).map((project) => <RecentProjectItem key={project.id} project={project} />)
         ) : (
-          <EmptyInfo label="No projects have been provisioned yet." />
+          <EmptyInfo label="No boards have been created yet." />
         )}
       </CardContent>
     </Card>
@@ -377,8 +364,8 @@ export function RecentProjectsCardSkeleton() {
     <Card className="rounded-[1.75rem] border shadow-none">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <CardTitle className="text-lg">Recently Provisioned</CardTitle>
-          <CardDescription>Newest projects with fast access to their boards.</CardDescription>
+          <CardTitle className="text-lg">Recent Boards</CardTitle>
+          <CardDescription>Newest provisioned and legacy workspaces with fast board access.</CardDescription>
         </div>
         <Button variant="secondary" size="sm" disabled>
           Open Projects
@@ -592,46 +579,6 @@ function EmptyInfo({ label }: { label: string }) {
   );
 }
 
-function ExpandableList<T>({
-  items,
-  initialCount,
-  getKey,
-  renderItem,
-  itemLabel,
-}: {
-  items: T[];
-  initialCount: number;
-  getKey: (item: T) => string;
-  renderItem: (item: T) => React.ReactNode;
-  itemLabel: string;
-}) {
-  const initialItems = items.slice(0, initialCount);
-  const remainingItems = items.slice(initialCount);
-
-  return (
-    <div className="space-y-3">
-      {initialItems.map((item) => (
-        <div key={getKey(item)}>{renderItem(item)}</div>
-      ))}
-
-      {remainingItems.length ? (
-        <Accordion type="single" collapsible>
-          <AccordionItem value="more" className="rounded-[1.25rem] border">
-            <AccordionTrigger className="px-4 py-3 text-sm">
-              Show {remainingItems.length} more {itemLabel}
-            </AccordionTrigger>
-            <AccordionContent className="space-y-3 px-4 py-4">
-              {remainingItems.map((item) => (
-                <div key={getKey(item)}>{renderItem(item)}</div>
-              ))}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      ) : null}
-    </div>
-  );
-}
-
 function PipelineActivityItem({ job }: { job: ProjectOverview }) {
   return (
     <Link
@@ -655,18 +602,20 @@ function PipelineActivityItem({ job }: { job: ProjectOverview }) {
   );
 }
 
-function RecentProjectItem({ project }: { project: ProjectRecord }) {
+function RecentProjectItem({ project }: { project: BoardRecord }) {
   return (
     <Link
-      href={`/projects/${project.name}`}
+      href={`/projects/${project.slug}`}
       className="block rounded-[1.25rem] border p-3 transition-colors hover:bg-muted/30"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-medium">{project.name}</p>
+          <p className="truncate font-medium">{project.title}</p>
           <p className="mt-1 truncate text-sm text-muted-foreground">{project.client_name}</p>
         </div>
-        <Badge>{project.framework}</Badge>
+        <Badge variant={project.source_type === 'legacy' ? 'warning' : 'outline'}>
+          {project.framework ?? 'Board only'}
+        </Badge>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">Created {formatRelativeTime(project.created_at)}</p>
     </Link>
