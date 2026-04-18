@@ -97,6 +97,40 @@
     background: hsl(var(--foreground));
     animation: step-live-sweep 1.1s ease-in-out infinite;
   }
+
+  .page-spinner-ring {
+    position: relative;
+  }
+
+  .page-spinner-ring::before,
+  .page-spinner-ring::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+  }
+
+  .page-spinner-ring::before {
+    border: 1px solid hsl(var(--border));
+    opacity: 0.95;
+  }
+
+  .page-spinner-ring::after {
+    border: 2px solid transparent;
+    border-top-color: hsl(var(--foreground));
+    border-right-color: hsl(var(--foreground));
+    animation: page-spinner-spin 1.15s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @layer utilities {
+    .loading-dot,
+    .step-live,
+    .page-spinner-ring::after {
+      animation: none !important;
+    }
+  }
 }
 
 @keyframes pulse {
@@ -129,5 +163,15 @@
 
   100% {
     transform: translateX(320%);
+  }
+}
+
+@keyframes page-spinner-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
   }
 }

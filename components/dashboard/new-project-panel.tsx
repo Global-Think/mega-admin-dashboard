@@ -319,7 +319,7 @@ export function NewProjectPanel({
                 {boardResult.boardSlug ? (
                   <div className="mt-4">
                     <Button asChild>
-                      <Link href={`/projects/${boardResult.boardSlug}`}>Open Board</Link>
+                      <HoverPrefetchLink href={`/projects/${boardResult.boardSlug}`}>Open Board</HoverPrefetchLink>
                     </Button>
                   </div>
                 ) : null}

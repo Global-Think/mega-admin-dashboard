@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { getSupabaseClient } from '@/lib/supabase';
+import { normalizeOptionalRichText } from '@/lib/rich-text';
 import type { KanbanCardRecord } from '@/types/project';
 
 type CardPriority = KanbanCardRecord['priority'];
@@ -58,7 +59,7 @@ export async function createCardForProject(
       board_id: board.id,
       column_id: input.columnId,
       title: sanitizeTitle(input.title),
-      description: normalizeOptionalText(input.description),
+      description: normalizeOptionalRichText(input.description),
       priority: validatePriority(input.priority),
       assignee: normalizeOptionalText(input.assignee),
       position: nextPosition,
@@ -84,7 +85,7 @@ export async function updateCardForProject(
 
   const updatePayload = {
     ...(input.title !== undefined ? { title: sanitizeTitle(input.title) } : {}),
-    ...(input.description !== undefined ? { description: normalizeOptionalText(input.description) } : {}),
+    ...(input.description !== undefined ? { description: normalizeOptionalRichText(input.description) } : {}),
     ...(input.priority !== undefined ? { priority: validatePriority(input.priority) } : {}),
     ...(input.assignee !== undefined ? { assignee: normalizeOptionalText(input.assignee) } : {}),
   };

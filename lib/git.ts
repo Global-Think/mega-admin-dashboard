@@ -1,3 +1,4 @@
+import 'server-only';
 import { execSync } from 'child_process';
 
 function runGit(command: string, cwd: string): void {

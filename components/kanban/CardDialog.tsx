@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 
@@ -14,8 +15,19 @@ import {
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
-import { Textarea } from '@/components/ui/Textarea';
+import { toRichTextHtml } from '@/lib/rich-text';
 import type { KanbanCardRecord } from '@/types/project';
+
+const RichTextEditor = dynamic(
+  () => import('@/components/ui/RichTextEditor').then((module) => module.RichTextEditor),
+  {
+    loading: () => (
+      <div className="min-h-[280px] rounded-xl border bg-background px-4 py-3 text-sm text-muted-foreground">
+        Loading editor...
+      </div>
+    ),
+  }
+);
 
 type CardFormState = {
   title: string;
@@ -51,7 +63,7 @@ export function CardDialog({
     if (initialCard) {
       setForm({
         title: initialCard.title,
-        description: initialCard.description ?? '',
+        description: toRichTextHtml(initialCard.description),
         priority: initialCard.priority,
         assignee: initialCard.assignee ?? '',
       });
@@ -142,12 +154,9 @@ export function CardDialog({
 
           <div className="space-y-3">
             <Label htmlFor="card-description">Description</Label>
-            <Textarea
-              id="card-description"
-              className="min-h-[320px] resize-y"
+            <RichTextEditor
               value={form.description}
-              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Add implementation notes, blockers, acceptance criteria, or anything the team needs to know."
+              onChange={(value) => setForm((current) => ({ ...current, description: value }))}
             />
           </div>
 

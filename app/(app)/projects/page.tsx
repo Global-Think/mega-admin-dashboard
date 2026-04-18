@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import {
   ProjectsPanelData,
   ProjectsPanelShell,
-  ProjectsTableSkeleton,
+  ProjectsTableLoadingState,
 } from '@/components/dashboard/projects-panel';
 import { getProjects } from '@/lib/dashboard-data';
 import type { ProjectRegistryRecord } from '@/types/project';
@@ -14,7 +14,7 @@ export default function ProjectsPage() {
   return (
     <ProjectsPanelShell
       content={
-        <Suspense fallback={<ProjectsTableSkeleton />}>
+        <Suspense fallback={<ProjectsTableLoadingState />}>
           <ProjectsDataSection />
         </Suspense>
       }

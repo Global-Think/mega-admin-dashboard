@@ -1,9 +1,10 @@
+import Link from 'next/link';
 import { RefreshCw } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { HoverPrefetchLink } from '@/components/ui/HoverPrefetchLink';
+import { PageSpinnerLoadingState } from '@/components/ui/PageSpinnerLoadingState';
 import { TableRowsSkeleton } from '@/components/ui/LoadingPrimitives';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { ProjectsTableClient } from './projects-table-client';
@@ -27,10 +28,10 @@ export function ProjectsPanelShell({
             </CardDescription>
           </div>
           <Button asChild variant="secondary">
-            <HoverPrefetchLink href={refreshHref}>
+            <Link href={refreshHref}>
               <RefreshCw className="h-4 w-4" />
               Refresh
-            </HoverPrefetchLink>
+            </Link>
           </Button>
         </CardHeader>
 
@@ -96,6 +97,28 @@ export function ProjectsTableSkeleton() {
           <TableRowsSkeleton rows={5} columns={5} />
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+export function ProjectsTableLoadingState() {
+  return (
+    <div className="overflow-hidden rounded-[1.5rem] border">
+      <div className="grid grid-cols-[minmax(0,1.35fr)_0.8fr_0.8fr_0.9fr_0.7fr] gap-4 border-b bg-muted/20 px-4 py-3 text-[11px] font-medium uppercase tracking-[0.24em] text-muted-foreground">
+        <span>Project</span>
+        <span>Framework</span>
+        <span>Active Tasks</span>
+        <span>Created</span>
+        <span className="text-right">Board</span>
+      </div>
+
+      <PageSpinnerLoadingState
+        className="rounded-none border-0"
+        label="Loading registry"
+        title="Fetching latest project boards..."
+        description="Preparing the projects registry and board metadata."
+        minHeightClassName="min-h-[260px]"
+      />
     </div>
   );
 }

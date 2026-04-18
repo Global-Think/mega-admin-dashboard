@@ -6,6 +6,7 @@ import { Clock3, LoaderCircle, Trash2 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { getRichTextPlainText } from '@/lib/rich-text';
 import { getInitials, formatRelativeTime, cn } from '@/lib/utils';
 import type { KanbanCardRecord } from '@/types/project';
 
@@ -30,6 +31,8 @@ function KanbanCardComponent({
   isSyncing?: boolean;
   isBoardSyncing?: boolean;
 }) {
+  const descriptionPreview = getRichTextPlainText(card.description);
+
   return (
     <Draggable draggableId={card.id} index={index} isDragDisabled={isBoardSyncing}>
       {(provided, snapshot) => (
@@ -60,6 +63,9 @@ function KanbanCardComponent({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 space-y-2">
                 <h4 className="line-clamp-2 text-[1.05rem] font-semibold leading-6">{card.title}</h4>
+                {descriptionPreview ? (
+                  <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{descriptionPreview}</p>
+                ) : null}
                 {isSyncing ? (
                   <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/80 px-2.5 py-1 text-xs font-medium text-foreground">
                     <LoaderCircle className="h-3.5 w-3.5 animate-spin" />

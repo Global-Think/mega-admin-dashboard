@@ -1,12 +1,26 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 
 import { ProjectBoardClient } from '@/components/projects/ProjectBoardClient';
+import { ProjectBoardLoadingState } from '@/components/projects/ProjectBoardLoadingState';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
 import { getProjectByName } from '@/lib/dashboard-data';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ProjectBoardPage({
+export default function ProjectBoardPage({
+  params,
+}: {
+  params: Promise<{ projectName: string }>;
+}) {
+  return (
+    <Suspense fallback={<ProjectBoardLoadingState />}>
+      <ProjectBoardContent params={params} />
+    </Suspense>
+  );
+}
+
+async function ProjectBoardContent({
   params,
 }: {
   params: Promise<{ projectName: string }>;
@@ -24,7 +38,11 @@ export default async function ProjectBoardPage({
       <Alert variant="error">
         <AlertTitle>Unable to load the board</AlertTitle>
         <AlertDescription className="text-red-700">
-          {result.error}. <Link href="/projects" className="underline underline-offset-4">Return to the projects registry</Link>.
+          {result.error}.{' '}
+          <Link href="/projects" className="underline underline-offset-4">
+            Return to the projects registry
+          </Link>
+          .
         </AlertDescription>
       </Alert>
     );

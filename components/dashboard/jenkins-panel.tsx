@@ -3,8 +3,8 @@ import { Activity, FolderKanban, RefreshCcw, ServerCog, TriangleAlert } from 'lu
 import { JenkinsJobsIsland } from '@/components/dashboard/JenkinsJobsIsland';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { MetricValueSkeleton, TableRowsSkeleton, TextLineSkeleton } from '@/components/ui/LoadingPrimitives';
-import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
+import { MetricValueSkeleton, TextLineSkeleton } from '@/components/ui/LoadingPrimitives';
+import { PageSpinnerLoadingState } from '@/components/ui/PageSpinnerLoadingState';
 import { formatRelativeTime } from '@/lib/utils';
 import type { JenkinsFolder } from '@/types/project';
 
@@ -85,22 +85,6 @@ export function JenkinsMetricCards({
   );
 }
 
-export function JenkinsMetricCardsSkeleton() {
-  return (
-    <>
-      {JENKINS_METRIC_COPY.map((metric) => (
-        <MetricCard
-          key={metric.title}
-          title={metric.title}
-          value={<MetricValueSkeleton />}
-          description={metric.description}
-          icon={metric.icon}
-        />
-      ))}
-    </>
-  );
-}
-
 const JENKINS_METRIC_COPY = [
   {
     title: 'Jenkins Projects',
@@ -134,6 +118,10 @@ export function JenkinsRenderedAtSkeleton() {
       <TextLineSkeleton className="w-36" />
     </span>
   );
+}
+
+export function JenkinsRenderedAtLoadingState() {
+  return <span className="text-sm text-muted-foreground">Loading latest Jenkins snapshot...</span>;
 }
 
 export function JenkinsPanelData({
@@ -174,27 +162,39 @@ export function JenkinsPanelData({
   );
 }
 
-export function JenkinsTableSkeleton() {
+export function JenkinsMetricCardsLoadingState() {
   return (
-    <div className="overflow-hidden rounded-[1.75rem] border">
-      <Table>
-        <TableHeader className="bg-muted/30">
-          <TableRow className="hover:bg-muted/30">
-            <TableHead className="w-14 text-center">S</TableHead>
-            <TableHead className="w-14 text-center">W</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Last Trigger</TableHead>
-            <TableHead>Last Success</TableHead>
-            <TableHead>Last Failure</TableHead>
-            <TableHead>Last Duration</TableHead>
-            <TableHead className="w-28 text-right">Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRowsSkeleton rows={5} columns={8} />
-        </TableBody>
-      </Table>
-    </div>
+    <>
+      {JENKINS_METRIC_COPY.map((metric) => (
+        <LoadingMetricCard
+          key={metric.title}
+          title={metric.title}
+          description={metric.description}
+          icon={metric.icon}
+        />
+      ))}
+    </>
+  );
+}
+
+export function BuildsHeroLoadingState() {
+  return (
+    <PageSpinnerLoadingState
+      label="Loading builds"
+      title="Fetching latest Jenkins snapshot..."
+      description="Preparing folders, jobs, and panel state."
+      minHeightClassName="min-h-[220px]"
+    />
+  );
+}
+
+export function JenkinsPanelLoadingState() {
+  return (
+    <JenkinsPanelShell
+      metrics={<JenkinsMetricCardsLoadingState />}
+      renderedAt={<JenkinsRenderedAtLoadingState />}
+      content={<BuildsHeroLoadingState />}
+    />
   );
 }
 
@@ -220,6 +220,37 @@ function MetricCard({
         </div>
         <CardTitle className="text-3xl">{value}</CardTitle>
       </CardHeader>
+      <CardContent>
+        <p className="text-sm leading-7 text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LoadingMetricCard({
+  title,
+  description,
+  icon: Icon,
+}: {
+  title: string;
+  description: string;
+  icon: typeof FolderKanban;
+}) {
+  return (
+    <Card className="rounded-[1.75rem] border shadow-none">
+      <CardHeader className="space-y-4 pb-4">
+        <div className="flex items-center justify-between gap-3">
+          <CardDescription className="text-xs font-medium uppercase tracking-[0.24em]">{title}</CardDescription>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border bg-muted/40 text-muted-foreground">
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
+
+        <CardTitle className="text-3xl">
+          <MetricValueSkeleton />
+        </CardTitle>
+      </CardHeader>
+
       <CardContent>
         <p className="text-sm leading-7 text-muted-foreground">{description}</p>
       </CardContent>
